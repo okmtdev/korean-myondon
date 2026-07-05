@@ -1,0 +1,14 @@
+{
+  "name": "@tsukumo/switchbot-mcp",
+  "version": "0.1.0",
+  "description": "Zero-dependency MCP server exposing SwitchBot devices to LLM clients",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "test": "node --test test/*.test.ts"
+  }
+}
