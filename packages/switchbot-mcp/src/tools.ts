@@ -1,20 +1,9 @@
 /**
  * SwitchBot クライアントを MCP ツール群に束ねる。
  */
-import type { ToolDefinition, ToolResult } from "./mcp.ts";
-import type { SwitchBotClient } from "./switchbot.ts";
-
-function jsonResult(value: unknown): ToolResult {
-  return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
-}
-
-function requireString(args: Record<string, unknown>, key: string): string {
-  const value = args[key];
-  if (typeof value !== "string" || value === "") {
-    throw new Error(`argument "${key}" must be a non-empty string`);
-  }
-  return value;
-}
+import { jsonToolResult as jsonResult, requireStringArg as requireString } from "../../core/src/mcp.ts";
+import type { ToolDefinition } from "../../core/src/mcp.ts";
+import type { SwitchBotClient } from "../../core/src/switchbot.ts";
 
 export function createSwitchBotTools(client: SwitchBotClient): ToolDefinition[] {
   return [

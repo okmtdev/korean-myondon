@@ -70,40 +70,51 @@ flowchart TB
 - **sync** — ルールと設定を CRDT ドキュメント（Automerge 予定）としてノード間同期。トランスポートは Tailscale 上の TCP/WebSocket。NAT 越えと鍵管理は自作しない。
 - **mcp** — Claude などの MCP クライアントへ家を公開する層。Phase 0 は SwitchBot 直結の単体サーバー、将来は agent の状態ストアを公開する形に統合する。
 
-## 5. ルール IR の想像図（Phase 2 で確定）
+## 5. ルール IR（v0 確定形）
 
 ```json
 {
-  "id": "rule-washer-notify",
-  "source": "洗濯機が終わったら通知して。ただし私が家にいるときは通知しないで",
+  "id": "humidity-fan-notify",
+  "source": "湿度が60%を超えたらサーキュレーターをつけて通知して",
+  "enabled": true,
   "trigger": {
-    "event": "switchbot.plug.washer.power",
-    "transition": { "from": "on", "to": "off", "minOnMinutes": 10 }
+    "deviceId": "C12345ABCDE",
+    "field": "humidity",
+    "to": { "gt": 60 },
+    "from": { "lte": 60 }
   },
-  "condition": { "not": { "state": "presence.home", "equals": true } },
-  "action": { "notify": { "channel": "slack", "message": "洗濯終わったよ" } }
+  "condition": { "time": { "after": "08:00", "before": "22:00" } },
+  "actions": [
+    { "type": "switchbot_command", "deviceId": "PLUG567890", "command": "turnOn" },
+    { "type": "notify", "message": "湿度が60%を超えたよ" }
+  ],
+  "explanation": "日中に湿度が60%を上回った瞬間、サーキュレーターをつけて通知します。"
 }
 ```
 
-trigger / condition の語彙は connector が公開する**イベントカタログ**からしか選べない。コンパイラ（LLM）はカタログ外の語を使えない＝幻覚したルールはコンパイルエラーになる。表現できない要求には「表現できない」と正直に断らせる。
+- trigger は「1デバイス1フィールドの変化」。`from`/`to` で挟むと「しきい値を越えた瞬間に1回」を表現できる
+- condition は allOf / anyOf / not / device（他デバイスの最新観測値への述語）/ time（時間帯・日またぎ可）
+- actions は switchbot_command / notify / log を上から順に実行（失敗は記録して続行）
+
+trigger / condition の語彙は**イベントカタログ**（agent が実際に観測した deviceId / field）からしか選べない。コンパイラ（LLM）がカタログ外の語を幻覚したらバリデーションで弾かれ、エラーをフィードバックして1回だけリトライする。表現できない要求（定時実行、「N分続いたら」等）には「表現できない」と正直に断らせる。
 
 ## 6. フェーズ計画
 
-| Phase | 内容 | 完成の定義（デモできること） |
-| --- | --- | --- |
-| **0** | switchbot-mcp（済） | Claude に「寝室いま何度？」と聞くと実測値が返る。「プラグ切って」で切れる |
-| **1** | agent デーモン + イベント収集 | SwitchBot の状態変化（Webhook + ポーリング）が SQLite に溜まり、「先週湿度が 60% を超えた時間帯は？」に MCP 経由で答えられる |
-| **2** | kotodama v0 | 日本語ルール 1 本がコンパイル → ローカル発火。LLM はコンパイル時のみ。矛盾検出のデモ |
-| **3** | CRDT 同期 + 遠隔ノード | 遠隔 mini PC が 2 号ノードに。オフライン中に両側でルールを編集 → 復帰時に矛盾なくマージ |
-| **4** | メディアイベント源（マイク・カメラ） | 自宅の生活音イベント（洗濯機終了・インターホン等）と、遠隔ノードの動体・人物検知イベントがトリガーに加わる。音声・映像の生データはノードの外に出ない。スナップショットは MCP 経由で明示要求時のみ（MCP の image content で返す） |
+| Phase | 内容 | 状態 | 完成の定義（デモできること） |
+| --- | --- | --- | --- |
+| **0** | switchbot-mcp | ✅ 実装済（実機検証待ち） | Claude に「寝室いま何度？」と聞くと実測値が返る。「プラグ切って」で切れる |
+| **1** | agent デーモン + イベント収集 + 履歴クエリ | ✅ 実装済（実機検証待ち） | SwitchBot の状態変化（ポーリング + Webhook）が JSONL ストアに溜まり、「先週湿度が 60% を超えた時間帯は？」に MCP 経由で答えられる |
+| **2** | kotodama v0 | ✅ 実装済（実機検証待ち） | 日本語ルールがコンパイル → agent がホットリロード → ローカル発火。LLM はコンパイル時のみ。カタログ外語彙は機械的に弾き、既存ルールとの重複は警告 |
+| **3** | CRDT 同期 + 遠隔ノード | ⬜ | 遠隔 mini PC が 2 号ノードに。オフライン中に両側でルールを編集 → 復帰時に矛盾なくマージ |
+| **4** | メディアイベント源（マイク・カメラ） | ⬜ | 自宅の生活音イベント（洗濯機終了・インターホン等）と、遠隔ノードの動体・人物検知イベントがトリガーに加わる。音声・映像の生データはノードの外に出ない。スナップショットは MCP 経由で明示要求時のみ（MCP の image content で返す） |
 
 ## 7. 技術選定（v0.1 時点の決定・変更歓迎）
 
 | 項目 | 決定 | 理由 |
 | --- | --- | --- |
 | 言語 | TypeScript を Node 22.18+ の type stripping で直接実行（ビルドレス） | 全ノードがフル PC なのでシングルバイナリの旨味よりイテレーション速度。MCP / Automerge / Anthropic SDK の生態系が一級。`git clone` だけで mini PC に配れる |
-| 依存 | Phase 0 はゼロ | 供給網リスクなし・可搬性最大。P2 で Anthropic SDK、P3 で Automerge を追加予定 |
-| ストレージ | SQLite（P1。まず `node:sqlite`、不足なら better-sqlite3） | 単一ファイル・バックアップ容易・依存最小 |
+| 依存 | **P2 までゼロを維持**（Claude API も素の `fetch` で叩く） | 供給網リスクなし・可搬性最大。P3 の Automerge が最初の依存になる見込み |
+| ストレージ | **JSONL 追記（日付分割）** ← P1 実装時に SQLite から変更 | `node:sqlite` は動作確認したが実験的機能で Node マイナーバージョン依存が残る。JSONL はどの Node でも動き、`tail -f` でイベントが見え、追記は雑に堅牢。読み書きは `JsonlEventStore` に隔離してあり、量が痛くなったら SQLite に差し替え可能 |
 | ノード間ネットワーク | Tailscale 前提 | NAT 越え・鍵管理・死活の可視化を自作しない。自作するのはその上のレイヤー |
 | CRDT | Automerge（P3） | ドキュメント指向でルール集合の表現に合う。学びたい技術でもある |
 | テスト | `node --test`（組み込みランナー） | 依存ゼロ維持 |
@@ -127,3 +138,4 @@ trigger / condition の語彙は connector が公開する**イベントカタ�
 
 - **2026-07-05** — プロジェクト名を tsukumo（仮）に。Phase 0 を「依存ゼロの単体 SwitchBot MCP サーバー」として切り出し、MCP stdio プロトコルは自前実装（学習目的 + 依存ゼロ維持）。
 - **2026-07-05** — 遠隔 mini PC の役割が確定：USB カメラでの監視カメラ運用。カメラは Phase 4 のイベント源（エッジで動体・人物検知）とし、映像の生データはノード外に出さない。「動体検知 → SwitchBot ライト点灯」のような遠隔×自宅をまたぐルールが Phase 3 以降の看板デモ候補。
+- **2026-07-06** — Phase 1 + 2 を実装。ストレージは SQLite から **JSONL（日付分割・追記専用）** に変更（理由は §7）。共有部品を `packages/core` に集約し、`agent`（常駐・ポーリング・Webhook 受信・ルール実行）と `kotodama`（コンパイラ CLI）を追加。依存ゼロ方針を継続——Claude API も SDK ではなく素の `fetch` で叩く（コンパイル時のみ）。ルール IR v0 を §5 の形で確定。デバウンスや「N分継続」トリガーは v0 では見送り（`from`/`to` で挟む書き方で大半を回避できるため）。

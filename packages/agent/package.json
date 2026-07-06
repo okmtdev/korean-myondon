@@ -1,7 +1,7 @@
 {
-  "name": "@tsukumo/switchbot-mcp",
-  "version": "0.2.0",
-  "description": "Zero-dependency MCP server exposing SwitchBot devices to LLM clients",
+  "name": "@tsukumo/agent",
+  "version": "0.1.0",
+  "description": "tsukumo resident agent: polls SwitchBot, records events, runs compiled rules locally",
   "type": "module",
   "license": "MIT",
   "engines": {

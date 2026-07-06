@@ -1,12 +1,13 @@
 # @tsukumo/switchbot-mcp
 
-SwitchBot デバイス群を MCP (Model Context Protocol) ツールとして公開する stdio サーバー。**依存ゼロ**（`npm install` 不要）で、Node.js 22.18+ だけで動きます。MCP の stdio プロトコル（JSON-RPC 2.0 / LF 区切り）自体を [`src/mcp.ts`](src/mcp.ts) で自前実装しています。
+SwitchBot デバイス群を MCP (Model Context Protocol) ツールとして公開する stdio サーバー。**依存ゼロ**（`npm install` 不要）で、Node.js 22.18+ だけで動きます。MCP の stdio プロトコル（JSON-RPC 2.0 / LF 区切り）自体を [`../core/src/mcp.ts`](../core/src/mcp.ts) で自前実装しています。
 
 Claude に繋ぐとこうなります：
 
 - 「寝室いま何度？湿度は？」 → 温湿度計を読んで答える
 - 「サーキュレーターのプラグ切っといて」 → プラグを操作する
 - 「おやすみシーン実行して」 → シーンを実行する
+- 「**先週、湿度が60%を超えた時間帯は？**」 → agent が溜めた履歴に答える（`TSUKUMO_STORE_DIR` 設定時）
 
 ## 必要なもの
 
@@ -63,6 +64,24 @@ claude mcp add tsukumo-switchbot \
 | `switchbot_send_command` | **操作** | `turnOn` / `turnOff` / `press` / `setPosition`、IR エアコンの `setAll` など |
 | `switchbot_list_scenes` | 読み取り | アプリで作った手動シーンの一覧 |
 | `switchbot_execute_scene` | **操作** | シーン実行 |
+
+### 履歴ツール（`TSUKUMO_STORE_DIR` 設定時のみ有効）
+
+[agent](../agent/) が溜めたイベントストアに問い合わせます。時刻は ISO 8601 のほか `-30m` / `-24h` / `-7d` の相対指定が使えます。
+
+| ツール | 説明 |
+| --- | --- |
+| `tsukumo_list_history_devices` | 履歴に登場するデバイスと観測済みフィールドの一覧（まずこれ） |
+| `tsukumo_query_events` | 生イベント（snapshot / change / rule 発火）の検索 |
+| `tsukumo_aggregate_history` | 数値フィールドの時間バケット集計（min/max/avg/last） |
+| `tsukumo_threshold_spans` | 「しきい値を超えていた時間帯」の検出（例: humidity gt 60） |
+
+```bash
+# 履歴つきで起動する例
+SWITCHBOT_TOKEN=xxx SWITCHBOT_SECRET=yyy TSUKUMO_STORE_DIR=/var/lib/tsukumo node src/index.ts
+```
+
+Claude Code / Desktop に繋ぐときも同様に `-e TSUKUMO_STORE_DIR=...`（または config の `env`）を足すだけです。
 
 ## テスト
 

@@ -1,0 +1,13 @@
+{
+  "name": "@tsukumo/kotodama",
+  "version": "0.1.0",
+  "description": "kotodama: compiles natural-language home rules into deterministic rule IR (LLM at compile time only)",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts"
+  }
+}

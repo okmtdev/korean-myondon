@@ -14,26 +14,37 @@
 
 ## いま動くもの
 
+全パッケージ**依存ゼロ**（`npm install` 不要）。Node 22.18+ で `git clone` して即動きます。
+
 | パッケージ | フェーズ | 説明 |
 | --- | --- | --- |
-| [`packages/switchbot-mcp`](packages/switchbot-mcp/) | Phase 0 | SwitchBot デバイス群を Claude から読み書きできる MCP サーバー。**依存ゼロ**（`npm install` 不要）、Node 22.18+ だけで動く |
+| [`packages/core`](packages/core/) | — | 共有部品：自前 MCP 実装、SwitchBot クライアント、JSONL イベントストア、履歴クエリ、ルールエンジン |
+| [`packages/switchbot-mcp`](packages/switchbot-mcp/) | 0+1 | Claude から家を読み書きする MCP サーバー。`TSUKUMO_STORE_DIR` を渡すと履歴クエリツールも生える |
+| [`packages/agent`](packages/agent/) | 1+2 | 常駐デーモン。ポーリング/Webhook で観測を溜め、コンパイル済みルールをローカル実行する |
+| [`packages/kotodama`](packages/kotodama/) | 2 | 言霊：日本語 → ルール IR コンパイラ（LLM はコンパイル時だけ） |
 
-## クイックスタート（Phase 0）
+## クイックスタート
 
 ```bash
 git clone <this-repo> && cd korean-myondon
-SWITCHBOT_TOKEN=xxx SWITCHBOT_SECRET=yyy node packages/switchbot-mcp/src/index.ts
-```
+export SWITCHBOT_TOKEN=xxx SWITCHBOT_SECRET=yyy
 
-Claude Code に繋ぐなら：
+# ① 観測を溜め始める（別ターミナルで常駐）
+TSUKUMO_STORE_DIR=./data node packages/agent/src/index.ts
 
-```bash
+# ② Claude Code から家を読める・動かせる・履歴を聞けるようにする
 claude mcp add tsukumo-switchbot \
   -e SWITCHBOT_TOKEN=xxx -e SWITCHBOT_SECRET=yyy \
+  -e TSUKUMO_STORE_DIR=/absolute/path/to/data \
   -- node /absolute/path/to/packages/switchbot-mcp/src/index.ts
+
+# ③ 日本語でルールを書く（LLM はこの瞬間だけ。実行は agent がローカルで）
+ANTHROPIC_API_KEY=sk-... TSUKUMO_STORE_DIR=./data \
+  node packages/kotodama/src/index.ts compile \
+  "湿度が60%を超えたらサーキュレーターをつけて通知して"
 ```
 
-トークンの取り方など詳細は [packages/switchbot-mcp/README.md](packages/switchbot-mcp/README.md) へ。
+詳細は各パッケージの README と [docs/design.md](docs/design.md) へ。
 
 ---
 

@@ -39,6 +39,19 @@ interface Envelope {
   body: unknown;
 }
 
+export interface SwitchBotDevice {
+  deviceId: string;
+  deviceName?: string;
+  deviceType?: string;
+  hubDeviceId?: string;
+  [extra: string]: unknown;
+}
+
+export interface DeviceListBody {
+  deviceList?: SwitchBotDevice[];
+  infraredRemoteList?: SwitchBotDevice[];
+}
+
 export class SwitchBotClient {
   private readonly credentials: SwitchBotCredentials;
   private readonly baseUrl: string;
@@ -80,6 +93,25 @@ export class SwitchBotClient {
 
   executeScene(sceneId: string): Promise<unknown> {
     return this.request("POST", `/scenes/${encodeURIComponent(sceneId)}/execute`);
+  }
+
+  /** イベント Webhook の宛先 URL を登録する */
+  setupWebhook(url: string): Promise<unknown> {
+    return this.request("POST", "/webhook/setupWebhook", {
+      action: "setupWebhook",
+      url,
+      deviceList: "ALL",
+    });
+  }
+
+  /** 登録済み Webhook URL を照会する */
+  queryWebhook(): Promise<unknown> {
+    return this.request("POST", "/webhook/queryWebhook", { action: "queryUrl" });
+  }
+
+  /** Webhook 登録を削除する */
+  deleteWebhook(url: string): Promise<unknown> {
+    return this.request("POST", "/webhook/deleteWebhook", { action: "deleteWebhook", url });
   }
 
   private async request(method: "GET" | "POST", path: string, body?: unknown): Promise<unknown> {

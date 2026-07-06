@@ -165,3 +165,17 @@ export class McpServer {
     return { jsonrpc: "2.0", id, error: { code, message } };
   }
 }
+
+/** ツール実装用ヘルパ: 値を整形 JSON のテキスト結果にする */
+export function jsonToolResult(value: unknown): ToolResult {
+  return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
+}
+
+/** ツール実装用ヘルパ: 必須の文字列引数を取り出す */
+export function requireStringArg(args: Record<string, unknown>, key: string): string {
+  const value = args[key];
+  if (typeof value !== "string" || value === "") {
+    throw new Error(`argument "${key}" must be a non-empty string`);
+  }
+  return value;
+}

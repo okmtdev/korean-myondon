@@ -1,0 +1,13 @@
+{
+  "name": "@tsukumo/core",
+  "version": "0.1.0",
+  "description": "Shared zero-dependency building blocks for tsukumo: MCP server, SwitchBot client, event store, rule engine",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts"
+  }
+}

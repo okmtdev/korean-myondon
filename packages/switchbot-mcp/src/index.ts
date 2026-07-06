@@ -5,11 +5,16 @@
  * 使い方:
  *   SWITCHBOT_TOKEN=xxx SWITCHBOT_SECRET=yyy node src/index.ts
  *
+ * TSUKUMO_STORE_DIR を設定すると、agent が溜めたイベント履歴への
+ * クエリツール（tsukumo_*）も有効になる。
+ *
  * 注意: stdout は MCP プロトコル専用。ログはすべて stderr へ。
  */
-import { McpServer } from "./mcp.ts";
-import { SwitchBotClient } from "./switchbot.ts";
+import { McpServer } from "../../core/src/mcp.ts";
+import { SwitchBotClient } from "../../core/src/switchbot.ts";
+import { JsonlEventStore } from "../../core/src/store.ts";
 import { createSwitchBotTools } from "./tools.ts";
+import { createHistoryTools } from "./history-tools.ts";
 
 const token = process.env.SWITCHBOT_TOKEN;
 const secret = process.env.SWITCHBOT_SECRET;
@@ -23,10 +28,16 @@ if (!token || !secret) {
 }
 
 const client = new SwitchBotClient({ token, secret });
-const server = new McpServer(
-  { name: "tsukumo-switchbot", version: "0.1.0" },
-  createSwitchBotTools(client),
-);
+const tools = createSwitchBotTools(client);
+
+const storeDir = process.env.TSUKUMO_STORE_DIR;
+if (storeDir) {
+  tools.push(...createHistoryTools(new JsonlEventStore(storeDir)));
+}
+
+const server = new McpServer({ name: "tsukumo-switchbot", version: "0.2.0" }, tools);
 
 server.attach(process.stdin, process.stdout);
-console.error("tsukumo switchbot-mcp: ready (stdio)");
+console.error(
+  `tsukumo switchbot-mcp: ready (stdio, ${tools.length} tools${storeDir ? `, history store: ${storeDir}` : ", history disabled — set TSUKUMO_STORE_DIR"})`,
+);
