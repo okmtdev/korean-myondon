@@ -23,6 +23,7 @@
 | [`packages/agent`](packages/agent/) | 1+2 | 常駐デーモン。ポーリング/Webhook で観測を溜め、コンパイル済みルールをローカル実行する |
 | [`packages/kotodama`](packages/kotodama/) | 2 | 言霊：日本語 → ルール IR コンパイラ（LLM はコンパイル時だけ。Gemini / Claude 両対応） |
 | [`packages/sync`](packages/sync/) | 3 | ルールを Automerge CRDT でノード間同期（**唯一 `npm install` が必要**。別プロセスなので他は依存ゼロのまま） |
+| [`packages/media`](packages/media/) | 4 | カメラ動体検知（ffmpeg + フレーム差分）とマイクのビープ検知（Goertzel 自作）。生データはノードの外に出ない |
 
 ## クイックスタート
 

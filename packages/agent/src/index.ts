@@ -25,6 +25,7 @@ import { join } from "node:path";
 import { JsonlEventStore } from "../../core/src/store.ts";
 import { SwitchBotClient } from "../../core/src/switchbot.ts";
 import { TsukumoAgent } from "./agent.ts";
+import { StoreTailer } from "./tailer.ts";
 
 const token = process.env.SWITCHBOT_TOKEN;
 const secret = process.env.SWITCHBOT_SECRET;
@@ -106,6 +107,29 @@ const webhookServer = webhookPort
     }).listen(webhookPort, () => log(`tsukumo-agent: webhook listening on :${webhookPort} (GET /healthz あり)`))
   : undefined;
 
+// --- ストア tail（camera / mic などの外部イベント源をルールに繋ぐ） -------
+const tailSources = new Set(
+  (process.env.TSUKUMO_TAIL_SOURCES ?? "camera,mic")
+    .split(",")
+    .map((source) => source.trim())
+    .filter(Boolean),
+);
+const tailer = tailSources.size > 0
+  ? new StoreTailer(
+      storeDir,
+      tailSources,
+      async (event) => {
+        const fired = await agent.ingestExternalChange(event);
+        if (fired > 0) {
+          log(`tsukumo-agent: external ${event.source} ${event.deviceId}.${event.field} -> fired=${fired}`);
+        }
+      },
+      log,
+    )
+  : undefined;
+tailer?.start();
+if (tailer) log(`tsukumo-agent: tailing store for sources=[${[...tailSources].join(", ")}]`);
+
 // --- ポーリングループ -----------------------------------------------------
 let stopped = false;
 let deviceRefreshedAt = 0;
@@ -137,6 +161,7 @@ async function loop(): Promise<void> {
 function shutdown(signal: string): void {
   log(`tsukumo-agent: ${signal} received, shutting down`);
   stopped = true;
+  tailer?.stop();
   webhookServer?.close();
   process.exit(0);
 }

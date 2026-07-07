@@ -83,6 +83,18 @@ SWITCHBOT_TOKEN=xxx SWITCHBOT_SECRET=yyy TSUKUMO_STORE_DIR=/var/lib/tsukumo node
 
 Claude Code / Desktop に繋ぐときも同様に `-e TSUKUMO_STORE_DIR=...`（または config の `env`）を足すだけです。
 
+### カメラツール（`TSUKUMO_CAMERA_URLS` 設定時のみ有効）
+
+| ツール | 説明 |
+| --- | --- |
+| `tsukumo_camera_snapshot` | 遠隔カメラノードの「いまの1枚」を画像で返す。**明示要求時のみ**（映像は常時送信されない） |
+
+```bash
+TSUKUMO_CAMERA_URLS="entrance=http://<mini PCのTailscale名>:8180" を追加
+```
+
+カメラ側のセットアップは [`../media/README.md`](../media/README.md) を参照。
+
 ## テスト
 
 ```bash

@@ -1,0 +1,15 @@
+{
+  "name": "@tsukumo/media",
+  "version": "0.1.0",
+  "description": "tsukumo media event sources: camera motion detection and mic beep detection, zero npm dependencies (uses system ffmpeg/arecord)",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "camera": "node src/camera.ts",
+    "mic": "node src/mic.ts",
+    "test": "node --test test/*.test.ts"
+  }
+}

@@ -190,6 +190,18 @@ export class TsukumoAgent {
     return { changes: changes.length, fired };
   }
 
+  /**
+   * 外部イベント源（camera / mic など、ストア経由で届く change）を処理する。
+   * ストアへの追記は済んでいる前提（tailer が読んだものをそのまま渡す）。
+   * 最新状態にも反映するので、condition から camera:xxx の motion 等を参照できる。
+   */
+  async ingestExternalChange(event: TsukumoEvent): Promise<number> {
+    if (event.kind !== "change" || event.field === undefined) return 0;
+    const previous = this.lastStatus.get(event.deviceId) ?? {};
+    this.lastStatus.set(event.deviceId, { ...previous, [event.field]: event.to });
+    return this.fire(event);
+  }
+
   private async fire(change: TsukumoEvent): Promise<number> {
     const ruleEvents = await fireRules(
       this.rules,

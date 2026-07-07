@@ -12,8 +12,17 @@ export interface TextContent {
   text: string;
 }
 
+export interface ImageContent {
+  type: "image";
+  /** base64 エンコード済みバイナリ */
+  data: string;
+  mimeType: string;
+}
+
+export type Content = TextContent | ImageContent;
+
 export interface ToolResult {
-  content: TextContent[];
+  content: Content[];
   isError?: boolean;
 }
 

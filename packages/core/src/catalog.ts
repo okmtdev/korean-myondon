@@ -7,6 +7,9 @@
 import { IGNORED_FIELDS } from "./poller.ts";
 import type { JsonlEventStore } from "./store.ts";
 
+/** カタログに載せるイベント源（＝ルールの語彙になれるもの） */
+export const CATALOG_SOURCES = new Set(["switchbot", "switchbot-webhook", "camera", "mic"]);
+
 export interface CatalogDevice {
   deviceId: string;
   deviceName?: string;
@@ -28,7 +31,7 @@ export async function buildCatalogFromStore(
   const devices = new Map<string, { deviceName?: string; deviceType?: string; fields: Set<string> }>();
 
   for await (const event of store.scan({ since })) {
-    if (event.source !== "switchbot" && event.source !== "switchbot-webhook") continue;
+    if (!CATALOG_SOURCES.has(event.source)) continue;
     let entry = devices.get(event.deviceId);
     if (entry === undefined) {
       entry = { fields: new Set() };

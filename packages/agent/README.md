@@ -36,7 +36,12 @@ tail -f data/events-$(date -u +%F).jsonl
 | `TSUKUMO_NOTIFY_WEBHOOK` | なし | `notify` アクションの宛先。Slack Incoming Webhook 互換（`{"text": ...}` を POST） |
 | `TSUKUMO_DRY_RUN` | なし | `1` でアクションを実行せず記録だけ（新ルールの様子見に） |
 | `TSUKUMO_WEBHOOK_PORT` | なし | SwitchBot Webhook 受信ポート。`GET /healthz` も生える（死活監視用） |
+| `TSUKUMO_TAIL_SOURCES` | `camera,mic` | ストアを tail してルールに流す外部イベント源（media デーモン連携。空にすると無効） |
 | `TSUKUMO_SWITCHBOT_BASE_URL` | 本番 API | テスト用の差し替え口 |
+
+### ストア＝イベントバス
+
+agent はストアを tail していて、[media デーモン](../media/)（camera / mic）が追記した change イベントにもルールを発火させます。将来のイベント源も「ストアに追記するだけ」で繋がります。ルールの `node` フィールドで実行ノードを指定できるので、複数ノード構成でも多重発火しません。
 
 ## systemd で常駐させる（mini PC 向け）
 
