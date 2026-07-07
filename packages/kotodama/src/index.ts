@@ -3,15 +3,16 @@
  * kotodama CLI — 日本語のルールをコンパイルして rules/ ディレクトリへ置く。
  * agent がホットリロードで拾って即座に動き出す。
  *
- *   ANTHROPIC_API_KEY=... node src/index.ts compile "洗濯機のプラグがOFFになったら通知して"
+ *   GEMINI_API_KEY=... node src/index.ts compile "洗濯機のプラグがOFFになったら通知して"
  *   node src/index.ts list
  *   node src/index.ts show <id> | enable <id> | disable <id> | remove <id>
  *
  * 環境変数:
- *   TSUKUMO_STORE_DIR      イベントストア（カタログの材料。default: ./data）
- *   TSUKUMO_RULES_DIR      ルール置き場（default: <store>/rules）
- *   ANTHROPIC_API_KEY      compile に必須
- *   TSUKUMO_COMPILE_MODEL  使用モデル（default: claude-sonnet-5）
+ *   TSUKUMO_STORE_DIR         イベントストア（カタログの材料。default: ./data）
+ *   TSUKUMO_RULES_DIR         ルール置き場（default: <store>/rules）
+ *   GEMINI_API_KEY / GOOGLE_API_KEY / ANTHROPIC_API_KEY  compile にいずれか必須
+ *   TSUKUMO_COMPILE_PROVIDER  gemini | anthropic（両方のキーがあるときの明示指定）
+ *   TSUKUMO_COMPILE_MODEL     使用モデル（default: gemini-2.5-flash / claude-sonnet-5）
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -20,6 +21,7 @@ import { validateRule } from "../../core/src/rules.ts";
 import type { Rule } from "../../core/src/rules.ts";
 import { JsonlEventStore } from "../../core/src/store.ts";
 import { compileRule } from "./compile.ts";
+import { createProviderFromEnv } from "./providers.ts";
 
 const storeDir = process.env.TSUKUMO_STORE_DIR ?? "./data";
 const rulesDir = process.env.TSUKUMO_RULES_DIR ?? join(storeDir, "rules");
@@ -57,9 +59,12 @@ async function commandCompile(): Promise<void> {
     console.error('usage: index.ts compile "<自然言語のルール>"');
     process.exit(1);
   }
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.error("compile には ANTHROPIC_API_KEY が必要です。");
+
+  let provider;
+  try {
+    provider = createProviderFromEnv();
+  } catch (cause) {
+    console.error(cause instanceof Error ? cause.message : String(cause));
     process.exit(1);
   }
 
@@ -74,11 +79,10 @@ async function commandCompile(): Promise<void> {
   }
 
   const existing = loadRules();
-  console.error(`kotodama: カタログ ${catalog.devices.length} デバイス / 既存ルール ${existing.length} 件でコンパイルします...`);
-  const result = await compileRule(text, catalog, existing, {
-    apiKey,
-    model: process.env.TSUKUMO_COMPILE_MODEL,
-  });
+  console.error(
+    `kotodama: ${provider.label} / カタログ ${catalog.devices.length} デバイス / 既存ルール ${existing.length} 件でコンパイルします...`,
+  );
+  const result = await compileRule(text, catalog, existing, provider);
 
   for (const warning of result.warnings) console.error(`⚠ ${warning}`);
   if (result.error !== undefined || result.rule === undefined) {

@@ -39,7 +39,8 @@ claude mcp add tsukumo-switchbot \
   -- node /absolute/path/to/packages/switchbot-mcp/src/index.ts
 
 # ③ 日本語でルールを書く（LLM はこの瞬間だけ。実行は agent がローカルで）
-ANTHROPIC_API_KEY=sk-... TSUKUMO_STORE_DIR=./data \
+#    GEMINI_API_KEY か ANTHROPIC_API_KEY のどちらかがあれば OK
+GEMINI_API_KEY=... TSUKUMO_STORE_DIR=./data \
   node packages/kotodama/src/index.ts compile \
   "湿度が60%を超えたらサーキュレーターをつけて通知して"
 ```

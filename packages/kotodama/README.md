@@ -2,7 +2,9 @@
 
 **言霊** — 日本語で書いたルールを、ローカルで動く決定的なルール IR（JSON）にコンパイルする。
 
-LLM（Claude API）を使うのは**コンパイル時のこの一瞬だけ**。できあがったルールは agent が 24 時間ローカルで実行し、実行時に LLM は登場しません（速い・タダ・オフライン OK・再現可能）。
+LLM を使うのは**コンパイル時のこの一瞬だけ**。できあがったルールは agent が 24 時間ローカルで実行し、実行時に LLM は登場しません（速い・タダ・オフライン OK・再現可能）。
+
+コンパイル時 LLM は **Gemini API / Claude API のどちらでも OK**（環境変数のキーから自動選択。SDK なし、素の `fetch`）。
 
 ## 使い方
 
@@ -11,8 +13,8 @@ cd packages/kotodama
 
 # 1. まず agent を動かして観測を溜めておく（カタログの材料になる）
 
-# 2. 日本語でコンパイル
-ANTHROPIC_API_KEY=sk-... node src/index.ts compile \
+# 2. 日本語でコンパイル（GEMINI_API_KEY か ANTHROPIC_API_KEY のどちらかがあればよい）
+GEMINI_API_KEY=... node src/index.ts compile \
   "湿度が60%を超えたらサーキュレーターをつけて、Slackに知らせて"
 
 # 3. 管理
@@ -59,10 +61,14 @@ node src/index.ts remove <id>
 
 | 変数 | 既定値 | 説明 |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | （compile に必須） | Claude API キー |
-| `TSUKUMO_COMPILE_MODEL` | `claude-sonnet-5` | コンパイルに使うモデル |
+| `GEMINI_API_KEY`（または `GOOGLE_API_KEY`） | — | Gemini API キー。[Google AI Studio](https://aistudio.google.com/) で無料発行できる |
+| `ANTHROPIC_API_KEY` | — | Claude API キー。**どちらか一方があれば compile できる** |
+| `TSUKUMO_COMPILE_PROVIDER` | 自動選択 | 両方のキーがあるときに `gemini` / `anthropic` で明示指定（未指定なら anthropic 優先） |
+| `TSUKUMO_COMPILE_MODEL` | `gemini-2.5-flash` / `claude-sonnet-5` | コンパイルに使うモデル（例: `gemini-2.5-pro`） |
 | `TSUKUMO_STORE_DIR` | `./data` | イベントストア（カタログの材料） |
 | `TSUKUMO_RULES_DIR` | `<store>/rules` | ルール保存先 |
+
+コンパイルは 1 ルールにつき LLM 呼び出し 1〜2 回（バリデーション違反時のみリトライ）なので、無料枠でも十分回ります。生成されたルールの `model` フィールドに `gemini:gemini-2.5-flash` のように記録されます。
 
 ## v0 の既知の限界
 

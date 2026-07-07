@@ -115,6 +115,7 @@ trigger / condition の語彙は**イベントカタログ**（agent が実際�
 | 言語 | TypeScript を Node 22.18+ の type stripping で直接実行（ビルドレス） | 全ノードがフル PC なのでシングルバイナリの旨味よりイテレーション速度。MCP / Automerge / Anthropic SDK の生態系が一級。`git clone` だけで mini PC に配れる |
 | 依存 | **P2 までゼロを維持**（Claude API も素の `fetch` で叩く） | 供給網リスクなし・可搬性最大。P3 の Automerge が最初の依存になる見込み |
 | ストレージ | **JSONL 追記（日付分割）** ← P1 実装時に SQLite から変更 | `node:sqlite` は動作確認したが実験的機能で Node マイナーバージョン依存が残る。JSONL はどの Node でも動き、`tail -f` でイベントが見え、追記は雑に堅牢。読み書きは `JsonlEventStore` に隔離してあり、量が痛くなったら SQLite に差し替え可能 |
+| コンパイル時 LLM | **Gemini API / Claude API 両対応**（プロバイダ抽象、環境変数のキーで自動選択、素の `fetch`） | SDK 依存を避ける。実行時には一切使わないので、プロバイダ選択は品質とコストだけの問題 |
 | ノード間ネットワーク | Tailscale 前提 | NAT 越え・鍵管理・死活の可視化を自作しない。自作するのはその上のレイヤー |
 | CRDT | Automerge（P3） | ドキュメント指向でルール集合の表現に合う。学びたい技術でもある |
 | テスト | `node --test`（組み込みランナー） | 依存ゼロ維持 |
@@ -139,3 +140,4 @@ trigger / condition の語彙は**イベントカタログ**（agent が実際�
 - **2026-07-05** — プロジェクト名を tsukumo（仮）に。Phase 0 を「依存ゼロの単体 SwitchBot MCP サーバー」として切り出し、MCP stdio プロトコルは自前実装（学習目的 + 依存ゼロ維持）。
 - **2026-07-05** — 遠隔 mini PC の役割が確定：USB カメラでの監視カメラ運用。カメラは Phase 4 のイベント源（エッジで動体・人物検知）とし、映像の生データはノード外に出さない。「動体検知 → SwitchBot ライト点灯」のような遠隔×自宅をまたぐルールが Phase 3 以降の看板デモ候補。
 - **2026-07-06** — Phase 1 + 2 を実装。ストレージは SQLite から **JSONL（日付分割・追記専用）** に変更（理由は §7）。共有部品を `packages/core` に集約し、`agent`（常駐・ポーリング・Webhook 受信・ルール実行）と `kotodama`（コンパイラ CLI）を追加。依存ゼロ方針を継続——Claude API も SDK ではなく素の `fetch` で叩く（コンパイル時のみ）。ルール IR v0 を §5 の形で確定。デバウンスや「N分継続」トリガーは v0 では見送り（`from`/`to` で挟む書き方で大半を回避できるため）。
+- **2026-07-06** — kotodama を **Gemini API 対応**（ANTHROPIC_API_KEY が入手できないため）。`providers.ts` にプロバイダ抽象を追加し、Claude / Gemini を環境変数キーで自動選択。Gemini は JSON モード（`responseMimeType`）+ 思考トークン分の余裕を持った `maxOutputTokens` で呼ぶ。既定モデルは `gemini-2.5-flash`（`TSUKUMO_COMPILE_MODEL` で変更可）。コンパイラ本体はプロバイダ非依存になり、テストはスタブプロバイダで検証。

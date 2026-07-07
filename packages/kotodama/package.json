@@ -1,7 +1,7 @@
 {
   "name": "@tsukumo/kotodama",
-  "version": "0.1.0",
-  "description": "kotodama: compiles natural-language home rules into deterministic rule IR (LLM at compile time only)",
+  "version": "0.2.0",
+  "description": "kotodama: compiles natural-language home rules into deterministic rule IR (Gemini or Claude at compile time only)",
   "type": "module",
   "license": "MIT",
   "engines": {

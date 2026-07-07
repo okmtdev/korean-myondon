@@ -1,14 +1,14 @@
 /**
  * kotodama（言霊）— 自然言語 → ルール IR コンパイラ。
  *
- * LLM（Claude API）を使うのは「コンパイル時」のここだけ。
+ * LLM を使うのは「コンパイル時」のここだけ。プロバイダ（Claude / Gemini）は
+ * providers.ts の抽象越しに呼ぶので、本体はどちらが相手かを知らない。
  * 出力されたルールはバリデータ（カタログ照合つき）を通らない限り受理されない。
  * バリデーション違反は LLM にフィードバックして 1 回だけリトライする。
  */
 import { type Catalog, catalogToPromptText } from "../../core/src/catalog.ts";
 import { type Rule, validateRule } from "../../core/src/rules.ts";
-
-export const DEFAULT_MODEL = "claude-sonnet-5";
+import type { ApiMessage, LlmProvider } from "./providers.ts";
 
 export const RULE_IR_SPEC = `Rule = {
   "id": "英小文字・数字・ハイフンの slug（内容が分かる名前）",
@@ -36,13 +36,6 @@ Action = 次のいずれか:
 トリガーの意味論: 指定デバイスの指定フィールドが「変化」し、from / to の条件を満たした瞬間に1回発火する。
 例: プラグがOFFになった → {"deviceId":"XX","field":"power","to":"off","from":"on"}
 例: 湿度が60を上回った瞬間 → {"deviceId":"XX","field":"humidity","to":{"gt":60},"from":{"lte":60}}`;
-
-export interface CompileDeps {
-  apiKey: string;
-  model?: string;
-  fetchImpl?: typeof fetch;
-  baseUrl?: string;
-}
 
 export interface CompileResult {
   rule?: Rule;
@@ -85,20 +78,6 @@ ${existing}
 - 解釈に幅があるときは、最も安全な解釈を選び、その旨を warnings に書く`;
 }
 
-interface ApiMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-function extractText(data: unknown): string {
-  const content = (data as { content?: Array<{ type?: string; text?: string }> })?.content;
-  if (!Array.isArray(content)) throw new Error("Claude API のレスポンスに content がありません");
-  return content
-    .filter((block) => block.type === "text" && typeof block.text === "string")
-    .map((block) => block.text)
-    .join("");
-}
-
 function stripFences(text: string): string {
   const trimmed = text.trim();
   if (!trimmed.startsWith("```")) return trimmed;
@@ -123,11 +102,8 @@ export async function compileRule(
   naturalLanguage: string,
   catalog: Catalog,
   existingRules: Rule[],
-  deps: CompileDeps,
+  provider: LlmProvider,
 ): Promise<CompileResult> {
-  const model = deps.model ?? DEFAULT_MODEL;
-  const fetchImpl = deps.fetchImpl ?? fetch;
-  const baseUrl = deps.baseUrl ?? "https://api.anthropic.com";
   const system = buildSystemPrompt(catalog, existingRules);
   const messages: ApiMessage[] = [{ role: "user", content: naturalLanguage }];
 
@@ -135,20 +111,7 @@ export async function compileRule(
   const maxAttempts = 2;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const response = await fetchImpl(`${baseUrl}/v1/messages`, {
-      method: "POST",
-      headers: {
-        "x-api-key": deps.apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ model, max_tokens: 2000, temperature: 0, system, messages }),
-    });
-    if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      throw new Error(`Claude API returned HTTP ${response.status}${detail ? `: ${detail.slice(0, 300)}` : ""}`);
-    }
-    const text = extractText(await response.json());
+    const text = await provider.complete(system, messages);
 
     let parsed: Record<string, unknown>;
     try {
@@ -174,7 +137,7 @@ export async function compileRule(
     const candidate = (parsed.rule ?? {}) as Record<string, unknown>;
     candidate.source = naturalLanguage;
     candidate.compiledAt = new Date().toISOString();
-    candidate.model = model;
+    candidate.model = provider.label;
     if (candidate.enabled === undefined) candidate.enabled = true;
 
     const problems = validateRule(candidate, catalog);
