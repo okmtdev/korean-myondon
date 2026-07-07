@@ -91,6 +91,9 @@ async function commandCompile(): Promise<void> {
   }
 
   const rule = result.rule;
+  // TSUKUMO_NODE があれば「このノードで実行するルール」として印を付ける
+  // （複数ノード同期時の多重発火防止。未設定なら全ノードで実行）
+  if (process.env.TSUKUMO_NODE) rule.node = process.env.TSUKUMO_NODE;
   let id = rule.id;
   let suffix = 2;
   while (existsSync(rulePath(id))) {

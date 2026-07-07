@@ -78,6 +78,11 @@ export interface Rule {
   actions: Action[];
   /** いつ・なぜ発火するかの人間向け説明（コンパイラが生成） */
   explanation: string;
+  /**
+   * 実行ノードの指定。設定するとそのノード名の agent だけが実行する。
+   * 未設定なら全ノードで実行（複数ノードが同じイベント源を見ていると多重発火するので注意）。
+   */
+  node?: string;
   compiledAt?: string;
   model?: string;
 }
@@ -188,6 +193,9 @@ export function validateRule(value: unknown, catalog: Catalog | null): string[] 
   if (typeof value.enabled !== "boolean") errors.push("enabled: boolean にしてください");
   if (typeof value.explanation !== "string" || value.explanation === "") {
     errors.push("explanation: 発火条件の人間向け説明を入れてください");
+  }
+  if (value.node !== undefined && (typeof value.node !== "string" || value.node === "")) {
+    errors.push("node: 指定するなら空でないノード名にしてください");
   }
 
   if (!isRecord(value.trigger)) {

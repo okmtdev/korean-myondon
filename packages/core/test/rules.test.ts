@@ -65,6 +65,16 @@ test("validateRule: catalog なしなら構造チェックのみ", () => {
   assert.deepEqual(validateRule(rule, null), []);
 });
 
+test("validateRule: node は任意だが、指定するなら空でない文字列", () => {
+  const withNode = validRule();
+  withNode.node = "home";
+  assert.deepEqual(validateRule(withNode, CATALOG), []);
+
+  const empty = validRule() as unknown as Record<string, unknown>;
+  empty.node = "";
+  assert.ok(validateRule(empty, CATALOG).some((error) => error.startsWith("node:")));
+});
+
 test("matchValue: プリミティブ一致と比較演算", () => {
   assert.equal(matchValue(undefined, "on"), true);
   assert.equal(matchValue("off", "off"), true);

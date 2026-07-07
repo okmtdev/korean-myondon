@@ -82,10 +82,15 @@ export class TsukumoAgent {
     };
   }
 
-  /** rules ディレクトリの *.json を読み込む。壊れたルールはスキップして報告 */
-  loadRules(): { loaded: number; errors: string[] } {
+  /**
+   * rules ディレクトリの *.json を読み込む。壊れたルールはスキップして報告。
+   * rule.node が指定されていて自ノード名と違うものは「他ノード担当」として除外する
+   * （同期で全ノードにルールが配られても、多重発火しないための仕組み）。
+   */
+  loadRules(): { loaded: number; skipped: number; errors: string[] } {
     const errors: string[] = [];
     const rules: Rule[] = [];
+    let skipped = 0;
     for (const name of readdirSync(this.rulesDir).filter((entry) => entry.endsWith(".json")).sort()) {
       try {
         const parsed = JSON.parse(readFileSync(join(this.rulesDir, name), "utf8")) as unknown;
@@ -94,13 +99,18 @@ export class TsukumoAgent {
           errors.push(`${name}: ${problems.join(" / ")}`);
           continue;
         }
-        rules.push(parsed as Rule);
+        const rule = parsed as Rule;
+        if (rule.node !== undefined && rule.node !== this.node) {
+          skipped += 1;
+          continue;
+        }
+        rules.push(rule);
       } catch (cause) {
         errors.push(`${name}: ${describeError(cause)}`);
       }
     }
     this.rules = rules;
-    return { loaded: rules.length, errors };
+    return { loaded: rules.length, skipped, errors };
   }
 
   /** デバイス一覧を取り直す（物理デバイスのみ）。戻り値は台数 */

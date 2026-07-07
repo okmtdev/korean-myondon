@@ -60,7 +60,9 @@ const agent = new TsukumoAgent({
 
 // --- ルール読み込み + ホットリロード -----------------------------------
 const initialRules = agent.loadRules();
-log(`tsukumo-agent: rules loaded=${initialRules.loaded}${dryRun ? " (dry-run)" : ""}`);
+log(
+  `tsukumo-agent: rules loaded=${initialRules.loaded} skipped(other node)=${initialRules.skipped}${dryRun ? " (dry-run)" : ""}`,
+);
 for (const error of initialRules.errors) log(`tsukumo-agent: rule error: ${error}`);
 
 let reloadTimer: NodeJS.Timeout | undefined;

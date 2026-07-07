@@ -21,7 +21,8 @@
 | [`packages/core`](packages/core/) | — | 共有部品：自前 MCP 実装、SwitchBot クライアント、JSONL イベントストア、履歴クエリ、ルールエンジン |
 | [`packages/switchbot-mcp`](packages/switchbot-mcp/) | 0+1 | Claude から家を読み書きする MCP サーバー。`TSUKUMO_STORE_DIR` を渡すと履歴クエリツールも生える |
 | [`packages/agent`](packages/agent/) | 1+2 | 常駐デーモン。ポーリング/Webhook で観測を溜め、コンパイル済みルールをローカル実行する |
-| [`packages/kotodama`](packages/kotodama/) | 2 | 言霊：日本語 → ルール IR コンパイラ（LLM はコンパイル時だけ） |
+| [`packages/kotodama`](packages/kotodama/) | 2 | 言霊：日本語 → ルール IR コンパイラ（LLM はコンパイル時だけ。Gemini / Claude 両対応） |
+| [`packages/sync`](packages/sync/) | 3 | ルールを Automerge CRDT でノード間同期（**唯一 `npm install` が必要**。別プロセスなので他は依存ゼロのまま） |
 
 ## クイックスタート
 
@@ -43,6 +44,10 @@ claude mcp add tsukumo-switchbot \
 GEMINI_API_KEY=... TSUKUMO_STORE_DIR=./data \
   node packages/kotodama/src/index.ts compile \
   "湿度が60%を超えたらサーキュレーターをつけて通知して"
+
+# ④ 遠隔ノードとルールを同期する（Phase 3。ここだけ npm install が必要）
+cd packages/sync && npm install
+TSUKUMO_SYNC_LISTEN_PORT=7821 node src/index.ts   # 手順の詳細は packages/sync/README.md
 ```
 
 詳細は各パッケージの README と [docs/design.md](docs/design.md) へ。

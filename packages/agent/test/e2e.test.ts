@@ -149,6 +149,22 @@ test("e2e: SwitchBot Webhook ボディが change として流れ、ルールが�
   const agent = new TsukumoAgent({ client, store, node: "e2e", rulesDir, log: (message) => logs.push(message) });
   agent.loadRules();
 
+  // 他ノード担当のルールは読み込み時にスキップされる（同期で配られても多重発火しない）
+  writeFileSync(
+    join(rulesDir, "remote-only.json"),
+    JSON.stringify({
+      id: "remote-only",
+      source: "リモートノード専用",
+      enabled: true,
+      node: "remote-camera",
+      trigger: { deviceId: "AA:BB:CC", field: "detectionState", to: "DETECTED" },
+      actions: [{ type: "log", message: "リモート側でだけ動くはず" }],
+      explanation: "node が違うので e2e ノードでは動かない",
+    }),
+  );
+  const reloaded = agent.loadRules();
+  assert.deepEqual({ loaded: reloaded.loaded, skipped: reloaded.skipped }, { loaded: 1, skipped: 1 });
+
   const result = await agent.handleWebhookBody({
     eventType: "changeReport",
     eventVersion: "1",
