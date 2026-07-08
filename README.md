@@ -51,7 +51,34 @@ cd packages/sync && npm install
 TSUKUMO_SYNC_LISTEN_PORT=7821 node src/index.ts   # 手順の詳細は packages/sync/README.md
 ```
 
-詳細は各パッケージの README と [docs/design.md](docs/design.md) へ。
+**実機での検証は [docs/verification.md](docs/verification.md) の順に進めるのが最短です**（Phase 0 → 4 のチェックリスト）。
+
+## ドキュメントマップ
+
+```
+README.md                          ← いまここ（入口・クイックスタート）
+├── docs/
+│   ├── design.md                  設計書：コンセプト・原則・アーキテクチャ・ルールIR・フェーズ計画・決定ログ
+│   ├── verification.md            実機検証ガイド：Phase 0→4 を順に動かすチェックリスト（まず読むならこれ）
+│   └── crdt-choice.md             Phase 3 の意思決定メモ：自前CRDT vs Automerge の比較表と決定
+└── packages/
+    ├── core/README.md             共有ライブラリのモジュール一覧と責務
+    ├── switchbot-mcp/README.md    MCPサーバー：トークン取得・接続方法・全ツール一覧
+    ├── agent/README.md            常駐デーモン：環境変数・systemd・Webhook・イベントバス
+    ├── kotodama/README.md         ルールコンパイラ：使い方・幻覚防止・Gemini/Claude設定・制限
+    ├── sync/README.md             Automerge同期：2ノード構成・受け入れデモ・同期の意味論
+    └── media/README.md            カメラ/マイク：セットアップ・ビープ較正・プライバシー原則
+```
+
+迷ったら：**動かしたい** → [docs/verification.md](docs/verification.md) ／ **思想・全体像** → [docs/design.md](docs/design.md) ／ **特定パッケージの詳細** → そのパッケージの README。
+
+## 開発メモ
+
+```bash
+node --test packages/*/test/*.test.ts   # 全パッケージのテストを一括実行（91 pass / 1 skip が正常）
+```
+
+設計上の決定はすべて [docs/design.md](docs/design.md) の決定ログに日付つきで残しています。
 
 ---
 
