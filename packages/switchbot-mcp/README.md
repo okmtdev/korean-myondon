@@ -1,0 +1,108 @@
+# @tsukumo/switchbot-mcp
+
+SwitchBot デバイス群を MCP (Model Context Protocol) ツールとして公開する stdio サーバー。**依存ゼロ**（`npm install` 不要）で、Node.js 22.18+ だけで動きます。MCP の stdio プロトコル（JSON-RPC 2.0 / LF 区切り）自体を [`../core/src/mcp.ts`](../core/src/mcp.ts) で自前実装しています。
+
+Claude に繋ぐとこうなります：
+
+- 「寝室いま何度？湿度は？」 → 温湿度計を読んで答える
+- 「サーキュレーターのプラグ切っといて」 → プラグを操作する
+- 「おやすみシーン実行して」 → シーンを実行する
+- 「**先週、湿度が60%を超えた時間帯は？**」 → agent が溜めた履歴に答える（`TSUKUMO_STORE_DIR` 設定時）
+
+## 必要なもの
+
+- Node.js **22.18 以上**（`node --version` で確認。TypeScript をビルドなしで直接実行するため）
+- SwitchBot のトークンとシークレット
+  1. SwitchBot アプリ → プロフィール → 設定
+  2. 「アプリバージョン」を **10 回タップ** → 「開発者向けオプション」が出現
+  3. トークンとクライアントシークレットを控える
+
+## 動作確認（デバイス一覧が返れば成功）
+
+```bash
+export SWITCHBOT_TOKEN=xxx SWITCHBOT_SECRET=yyy
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"switchbot_list_devices","arguments":{}}}' \
+  | node src/index.ts
+```
+
+## Claude Code に繋ぐ
+
+```bash
+claude mcp add tsukumo-switchbot \
+  -e SWITCHBOT_TOKEN=xxx -e SWITCHBOT_SECRET=yyy \
+  -- node /absolute/path/to/packages/switchbot-mcp/src/index.ts
+```
+
+## Claude Desktop に繋ぐ
+
+`claude_desktop_config.json` に追記：
+
+```json
+{
+  "mcpServers": {
+    "tsukumo-switchbot": {
+      "command": "node",
+      "args": ["/absolute/path/to/packages/switchbot-mcp/src/index.ts"],
+      "env": {
+        "SWITCHBOT_TOKEN": "xxx",
+        "SWITCHBOT_SECRET": "yyy"
+      }
+    }
+  }
+}
+```
+
+## ツール一覧
+
+| ツール | 種別 | 説明 |
+| --- | --- | --- |
+| `switchbot_list_devices` | 読み取り | 物理デバイスと赤外線リモコンの一覧。まずこれで deviceId を調べる |
+| `switchbot_get_device_status` | 読み取り | 温度・湿度・CO2・バッテリー・電源状態・カーテン位置など（IR リモコンには無い） |
+| `switchbot_send_command` | **操作** | `turnOn` / `turnOff` / `press` / `setPosition`、IR エアコンの `setAll` など |
+| `switchbot_list_scenes` | 読み取り | アプリで作った手動シーンの一覧 |
+| `switchbot_execute_scene` | **操作** | シーン実行 |
+
+### 履歴ツール（`TSUKUMO_STORE_DIR` 設定時のみ有効）
+
+[agent](../agent/) が溜めたイベントストアに問い合わせます。時刻は ISO 8601 のほか `-30m` / `-24h` / `-7d` の相対指定が使えます。
+
+| ツール | 説明 |
+| --- | --- |
+| `tsukumo_list_history_devices` | 履歴に登場するデバイスと観測済みフィールドの一覧（まずこれ） |
+| `tsukumo_query_events` | 生イベント（snapshot / change / rule 発火）の検索 |
+| `tsukumo_aggregate_history` | 数値フィールドの時間バケット集計（min/max/avg/last） |
+| `tsukumo_threshold_spans` | 「しきい値を超えていた時間帯」の検出（例: humidity gt 60） |
+
+```bash
+# 履歴つきで起動する例
+SWITCHBOT_TOKEN=xxx SWITCHBOT_SECRET=yyy TSUKUMO_STORE_DIR=/var/lib/tsukumo node src/index.ts
+```
+
+Claude Code / Desktop に繋ぐときも同様に `-e TSUKUMO_STORE_DIR=...`（または config の `env`）を足すだけです。
+
+### カメラツール（`TSUKUMO_CAMERA_URLS` 設定時のみ有効）
+
+| ツール | 説明 |
+| --- | --- |
+| `tsukumo_camera_snapshot` | 遠隔カメラノードの「いまの1枚」を画像で返す。**明示要求時のみ**（映像は常時送信されない） |
+
+```bash
+TSUKUMO_CAMERA_URLS="entrance=http://<mini PCのTailscale名>:8180" を追加
+```
+
+カメラ側のセットアップは [`../media/README.md`](../media/README.md) を参照。
+
+## テスト
+
+```bash
+node --test test/*.test.ts
+```
+
+## 注意
+
+- SwitchBot API **v1.1**（cloud 経由）を使います。レート制限は 1 日 10,000 リクエスト目安
+- 署名ロジック（HMAC-SHA256 → base64 → 大文字化）はゴールデンテストで固定していますが、**実機での疎通はまだ未検証**です。`HTTP 401` が返る場合は署名まわりを疑い、一次情報 <https://github.com/OpenWonderLabs/SwitchBotAPI> と突き合わせてください
+- stdout は MCP プロトコル専用です。デバッグログを足すときは必ず `console.error`（stderr）へ

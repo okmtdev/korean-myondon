@@ -1,0 +1,14 @@
+{
+  "name": "@tsukumo/agent",
+  "version": "0.1.0",
+  "description": "tsukumo resident agent: polls SwitchBot, records events, runs compiled rules locally",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "test": "node --test test/*.test.ts"
+  }
+}
